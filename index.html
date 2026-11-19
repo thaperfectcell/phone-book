@@ -2,525 +2,406 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>3D Телефонный справочник</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Телефонный справочник</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f1a 100%);
-            color: #fff;
-            overflow: hidden;
-            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            min-height: 100vh;
+            padding: 40px 20px;
         }
-        canvas { display: block; }
 
-        /* Заголовок поверх 3D-сцены */
-        #header {
-            position: fixed;
-            top: 20px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            z-index: 10;
-            pointer-events: none;
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
         }
-        #header h1 {
-            font-size: 28px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            background: linear-gradient(90deg, #00f2fe, #4facfe, #a855f7);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 40px rgba(79, 172, 254, 0.3);
-        }
-        #header p { color: #888; font-size: 12px; margin-top: 5px; letter-spacing: 1px; }
 
-        /* Кнопка "Новый контакт" */
-        #newBtn {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            padding: 14px 32px;
-            font-size: 15px;
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 24px;
             font-weight: 600;
-            letter-spacing: 1px;
-            color: #fff;
-            background: linear-gradient(135deg, #4facfe, #a855f7);
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 8px 32px rgba(79, 172, 254, 0.4);
-            transition: all 0.3s;
-        }
-        #newBtn:hover {
-            transform: translateX(-50%) translateY(-3px) scale(1.05);
-            box-shadow: 0 12px 40px rgba(168, 85, 247, 0.6);
         }
 
-        /* Модальное окно формы */
-        #modal {
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+
+        .btn-edit { background: #e0e7ff; color: #3730a3; }
+        .btn-edit:hover { background: #c7d2fe; }
+
+        .btn-delete { background: #fee2e2; color: #b91c1c; }
+        .btn-delete:hover { background: #fecaca; }
+
+        .btn-cancel { background: #e5e7eb; color: #374151; }
+        .btn-cancel:hover { background: #d1d5db; }
+
+        /* Таблица */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            text-align: left;
+            padding: 14px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b7280;
+        }
+
+        td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: #f9fafb; }
+
+        .actions { display: flex; gap: 8px; }
+
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+        .empty svg { margin-bottom: 12px; opacity: 0.5; }
+
+        /* Модальное окно */
+        .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.4);
             display: none;
             align-items: center;
             justify-content: center;
+            padding: 20px;
             z-index: 100;
         }
-        #modal.active { display: flex; }
-        #modalForm {
-            background: linear-gradient(145deg, #1e1e3f, #15152a);
-            border: 1px solid rgba(79, 172, 254, 0.3);
-            border-radius: 20px;
-            padding: 40px;
-            width: 400px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-        }
-        #modalForm h2 {
-            margin-bottom: 25px;
-            font-size: 20px;
-            color: #4facfe;
-            letter-spacing: 1px;
-        }
-        #modalForm input {
-            width: 100%;
-            margin-bottom: 15px;
-            padding: 12px 15px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: #fff;
-            font-size: 14px;
-            outline: none;
-            transition: border 0.3s;
-        }
-        #modalForm input:focus {
-            border-color: #4facfe;
-            box-shadow: 0 0 15px rgba(79, 172, 254, 0.3);
-        }
-        #modalForm input::placeholder { color: #666; }
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-actions button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn-save { background: linear-gradient(135deg, #4facfe, #00f2fe); color: #fff; }
-        .btn-save:hover { box-shadow: 0 0 20px rgba(79, 172, 254, 0.6); }
-        .btn-cancel { background: rgba(255, 255, 255, 0.1); color: #aaa; }
-        .btn-cancel:hover { background: rgba(255, 255, 255, 0.2); }
-        .btn-delete { background: rgba(244, 67, 54, 0.8); color: #fff; }
-        .btn-delete:hover { background: #f44336; box-shadow: 0 0 20px rgba(244, 67, 54, 0.5); }
+        .modal-overlay.active { display: flex; }
 
-        /* Toast-уведомления */
-        #toast {
-            position: fixed;
-            top: 80px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-20px);
-            padding: 12px 24px;
-            border-radius: 10px;
-            background: rgba(79, 172, 254, 0.9);
-            color: #fff;
+        .modal {
+            background: #fff;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 460px;
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            animation: modalIn 0.2s ease-out;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .field { margin-bottom: 16px; }
+
+        .field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .field input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
             font-size: 14px;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .field input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+        }
+        .modal-actions .btn { flex: 1; }
+        .modal-actions .btn-delete { flex: 0 0 auto; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #1f2937;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: transform 0.3s;
             z-index: 200;
         }
-        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-        #toast.error { background: rgba(244, 67, 54, 0.9); }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { background: #b91c1c; }
     </style>
 </head>
 <body>
-    <div id="header">
-        <h1>📞 3D Справочник</h1>
-        <p>Кликните на карточку, чтобы взаимодействовать</p>
+    <div class="container">
+        <header>
+            <h1>Телефонный справочник</h1>
+            <button class="btn btn-primary" id="addBtn">+ Добавить контакт</button>
+        </header>
+
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>Email</th>
+                        <th>Мобильный</th>
+                        <th>Домашний</th>
+                        <th style="width: 180px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+            <div class="empty" id="emptyState" style="display:none;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <p>Пока нет контактов. Добавьте первый!</p>
+            </div>
+        </div>
     </div>
 
-    <button id="newBtn">＋ Новый контакт</button>
-
-    <div id="modal">
-        <form id="modalForm">
+    <div class="modal-overlay" id="modalOverlay">
+        <form class="modal" id="contactForm">
             <h2 id="modalTitle">Новый контакт</h2>
             <input type="hidden" id="contactId">
-            <input type="text" id="username" placeholder="Имя (обязательно)" required>
-            <input type="email" id="email" placeholder="Email">
-            <input type="text" id="mobile" placeholder="Мобильный телефон">
-            <input type="text" id="home" placeholder="Домашний телефон">
+            <div class="field">
+                <label for="username">Имя *</label>
+                <input type="text" id="username" required autocomplete="off">
+            </div>
+            <div class="field">
+                <label for="email">Email</label>
+                <input type="email" id="email" autocomplete="off">
+            </div>
+            <div class="field">
+                <label for="mobile">Мобильный телефон</label>
+                <input type="tel" id="mobile" autocomplete="off">
+            </div>
+            <div class="field">
+                <label for="home">Домашний телефон</label>
+                <input type="tel" id="home" autocomplete="off">
+            </div>
             <div class="modal-actions">
-                <button type="submit" class="btn-save" id="saveBtn">Создать</button>
-                <button type="button" class="btn-delete" id="deleteBtn" style="display:none;">Удалить</button>
-                <button type="button" class="btn-cancel" id="cancelBtn">Отмена</button>
+                <button type="submit" class="btn btn-primary" id="saveBtn">Создать</button>
+                <button type="button" class="btn btn-delete" id="deleteBtn" style="display:none;">Удалить</button>
+                <button type="button" class="btn btn-cancel" id="cancelBtn">Отмена</button>
             </div>
         </form>
     </div>
 
-    <div id="toast"></div>
+    <div class="toast" id="toast"></div>
 
-    <!-- Three.js с CDN -->
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-        }
-    }
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
+    <script>
         const API_URL = 'http://localhost:8080/api/contacts';
 
-        // ====== СЦЕНА ======
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x0f0f1a, 0.02);
+        const tableBody = document.getElementById('tableBody');
+        const emptyState = document.getElementById('emptyState');
+        const overlay = document.getElementById('modalOverlay');
+        const form = document.getElementById('contactForm');
+        const toast = document.getElementById('toast');
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 0, 22);
+        let contacts = [];
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.5;
-        controls.minDistance = 10;
-        controls.maxDistance = 40;
-        controls.enablePan = false;
-
-        // Освещение
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const pointLight = new THREE.PointLight(0x4facfe, 100, 50);
-        pointLight.position.set(10, 10, 10);
-        scene.add(pointLight);
-        const pointLight2 = new THREE.PointLight(0xa855f7, 80, 50);
-        pointLight2.position.set(-10, -10, -10);
-        scene.add(pointLight2);
-
-        // Звёздный фон
-        const starGeo = new THREE.BufferGeometry();
-        const starPositions = [];
-        for (let i = 0; i < 3000; i++) {
-            starPositions.push(
-                (Math.random() - 0.5) * 200,
-                (Math.random() - 0.5) * 200,
-                (Math.random() - 0.5) * 200
-            );
-        }
-        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
-        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
-            color: 0xffffff, size: 0.15, transparent: true, opacity: 0.7,
-        }));
-        scene.add(stars);
-
-        // ====== КАРУСЕЛЬ ======
-        const carousel = new THREE.Group();
-        scene.add(carousel);
-
-        let cardMeshes = [];
-        let hoveredCard = null;
-
-        // Создать текстуру-карточку с данными контакта
-        function createCardTexture(contact) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 320;
-            const ctx = canvas.getContext('2d');
-
-            // Градиентный фон
-            const grad = ctx.createLinearGradient(0, 0, 512, 320);
-            grad.addColorStop(0, '#1e1e3f');
-            grad.addColorStop(1, '#15152a');
-            ctx.fillStyle = grad;
-            roundRect(ctx, 0, 0, 512, 320, 30);
-            ctx.fill();
-
-            // Рамка
-            ctx.strokeStyle = '#4facfe';
-            ctx.lineWidth = 4;
-            roundRect(ctx, 2, 2, 508, 316, 30);
-            ctx.stroke();
-
-            // Аватар (круг с инициалом)
-            const initial = (contact.username || '?').charAt(0).toUpperCase();
-            const avatarGrad = ctx.createRadialGradient(80, 90, 10, 80, 90, 50);
-            avatarGrad.addColorStop(0, '#4facfe');
-            avatarGrad.addColorStop(1, '#a855f7');
-            ctx.fillStyle = avatarGrad;
-            ctx.beginPath();
-            ctx.arc(80, 90, 45, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 44px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(initial, 80, 92);
-
-            // Имя
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 32px Arial';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.fillText(truncate(contact.username || '', 18), 145, 65);
-
-            // Email
-            ctx.fillStyle = '#4facfe';
-            ctx.font = '20px Arial';
-            ctx.fillText(truncate(contact.email || '—', 26), 145, 110);
-
-            // Разделитель
-            ctx.strokeStyle = 'rgba(79, 172, 254, 0.3)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(40, 175);
-            ctx.lineTo(472, 175);
-            ctx.stroke();
-
-            // Телефоны
-            ctx.fillStyle = '#a855f7';
-            ctx.font = 'bold 20px Arial';
-            ctx.fillText('📱', 40, 210);
-            ctx.fillStyle = '#ccc';
-            ctx.font = '22px Arial';
-            ctx.fillText(truncate(contact.mobile || '—', 22), 80, 210);
-
-            ctx.fillStyle = '#a855f7';
-            ctx.font = 'bold 20px Arial';
-            ctx.fillText('🏠', 40, 255);
-            ctx.fillStyle = '#ccc';
-            ctx.font = '22px Arial';
-            ctx.fillText(truncate(contact.home || '—', 22), 80, 255);
-
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-            return texture;
-        }
-
-        function roundRect(ctx, x, y, w, h, r) {
-            ctx.beginPath();
-            ctx.moveTo(x + r, y);
-            ctx.arcTo(x + w, y, x + w, y + h, r);
-            ctx.arcTo(x + w, y + h, x, y + h, r);
-            ctx.arcTo(x, y + h, x, y, r);
-            ctx.arcTo(x, y, x + w, y, r);
-            ctx.closePath();
-        }
-
-        function truncate(str, max) {
-            return str.length > max ? str.slice(0, max - 1) + '…' : str;
-        }
-
-        // Перестроить карусель
-        function rebuildCarousel(contacts) {
-            // Удаляем старые карточки
-            cardMeshes.forEach(m => {
-                carousel.remove(m);
-                m.geometry.dispose();
-                m.material.map.dispose();
-                m.material.dispose();
-            });
-            cardMeshes = [];
-
-            const count = contacts.length;
-            if (count === 0) return;
-
-            const radius = Math.max(6, count * 1.6);
-            const cardW = 4;
-            const cardH = 2.5;
-
-            contacts.forEach((contact, i) => {
-                const angle = (i / count) * Math.PI * 2;
-                const texture = createCardTexture(contact);
-                const mat = new THREE.MeshStandardMaterial({
-                    map: texture,
-                    transparent: true,
-                    side: THREE.DoubleSide,
-                    emissive: 0x111133,
-                    emissiveIntensity: 0.5,
-                });
-                const geo = new THREE.PlaneGeometry(cardW, cardH);
-                const mesh = new THREE.Mesh(geo, mat);
-
-                mesh.position.x = Math.cos(angle) * radius;
-                mesh.position.z = Math.sin(angle) * radius;
-                mesh.lookAt(0, 0, 0);
-                mesh.rotateY(Math.PI);
-
-                mesh.userData = { contact, baseY: 0, angle };
-                carousel.add(mesh);
-                cardMeshes.push(mesh);
-            });
-        }
-
-        // ====== ВЗАИМОДЕЙСТВИЕ ======
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-
-        renderer.domElement.addEventListener('mousemove', (e) => {
-            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects(cardMeshes);
-
-            if (hits.length > 0) {
-                const card = hits[0].object;
-                if (hoveredCard !== card) {
-                    if (hoveredCard) hoveredCard.scale.set(1, 1, 1);
-                    hoveredCard = card;
-                    card.scale.set(1.12, 1.12, 1.12);
-                    document.body.style.cursor = 'pointer';
-                }
-            } else {
-                if (hoveredCard) {
-                    hoveredCard.scale.set(1, 1, 1);
-                    hoveredCard = null;
-                }
-                document.body.style.cursor = 'default';
-            }
-        });
-
-        renderer.domElement.addEventListener('click', () => {
-            raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects(cardMeshes);
-            if (hits.length > 0) {
-                openEditModal(hits[0].object.userData.contact);
-            }
-        });
-
-        // ====== АНИМАЦИЯ ======
-        let clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const t = clock.getElapsedTime();
-
-            // Плавное покачивание карточек
-            cardMeshes.forEach((m, i) => {
-                m.position.y = Math.sin(t * 1.5 + i * 0.7) * 0.4;
-                m.rotation.z = Math.sin(t + i) * 0.03;
-            });
-
-            // Вращение звёзд
-            stars.rotation.y += 0.0003;
-
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // ====== API + UI ======
+        // ----- Утилиты -----
         function showToast(text, isError = false) {
-            const el = document.getElementById('toast');
-            el.textContent = text;
-            el.className = isError ? 'show error' : 'show';
-            setTimeout(() => el.className = '', 2500);
+            toast.textContent = text;
+            toast.className = 'toast show' + (isError ? ' error' : '');
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => toast.className = 'toast', 2500);
         }
 
+        function escapeHtml(s) {
+            return String(s || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ----- Рендер таблицы -----
+        function renderTable() {
+            if (contacts.length === 0) {
+                tableBody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            tableBody.innerHTML = contacts.map(c => `
+                <tr>
+                    <td>${escapeHtml(c.username)}</td>
+                    <td>${escapeHtml(c.email) || '<span style="color:#9ca3af">—</span>'}</td>
+                    <td>${escapeHtml(c.mobile) || '<span style="color:#9ca3af">—</span>'}</td>
+                    <td>${escapeHtml(c.home) || '<span style="color:#9ca3af">—</span>'}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-edit" onclick="editContact(${c.id})">Изменить</button>
+                            <button class="btn btn-delete" onclick="deleteContact(${c.id})">Удалить</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ----- Загрузка -----
         async function loadContacts() {
             try {
                 const res = await fetch(API_URL);
                 if (!res.ok) throw new Error('Ошибка загрузки');
-                const contacts = await res.json();
-                rebuildCarousel(contacts || []);
+                contacts = await res.json() || [];
+                renderTable();
             } catch (err) {
-                showToast('Не удалось загрузить: ' + err.message, true);
+                showToast('Не удалось загрузить контакты', true);
             }
         }
 
-        function openModal(title, contact) {
-            document.getElementById('modalTitle').textContent = title;
+        // ----- Модалка -----
+        function openModal(contact = null) {
+            document.getElementById('modalTitle').textContent =
+                contact ? 'Редактирование контакта' : 'Новый контакт';
             document.getElementById('contactId').value = contact?.id || '';
             document.getElementById('username').value = contact?.username || '';
             document.getElementById('email').value = contact?.email || '';
             document.getElementById('mobile').value = contact?.mobile || '';
             document.getElementById('home').value = contact?.home || '';
-            document.getElementById('saveBtn').textContent = contact?.id ? 'Сохранить' : 'Создать';
-            document.getElementById('deleteBtn').style.display = contact?.id ? 'block' : 'none';
-            document.getElementById('modal').classList.add('active');
-        }
-
-        function openEditModal(contact) {
-            openModal('Редактирование контакта', contact);
+            document.getElementById('saveBtn').textContent = contact ? 'Сохранить' : 'Создать';
+            document.getElementById('deleteBtn').style.display = contact ? 'block' : 'none';
+            overlay.classList.add('active');
+            setTimeout(() => document.getElementById('username').focus(), 50);
         }
 
         function closeModal() {
-            document.getElementById('modal').classList.remove('active');
+            overlay.classList.remove('active');
         }
 
-        document.getElementById('newBtn').addEventListener('click', () => openModal('Новый контакт', null));
-        document.getElementById('cancelBtn').addEventListener('click', closeModal);
-
-        document.getElementById('modalForm').addEventListener('submit', async (e) => {
+        // ----- CRUD -----
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('contactId').value;
-            const contact = {
+            const data = {
                 username: document.getElementById('username').value.trim(),
                 email: document.getElementById('email').value.trim(),
                 mobile: document.getElementById('mobile').value.trim(),
                 home: document.getElementById('home').value.trim(),
             };
-            if (!contact.username) {
-                showToast('Имя обязательно', true);
-                return;
-            }
+            if (!data.username) return;
+
             try {
                 const res = id
                     ? await fetch(`${API_URL}/${id}`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(contact),
+                          body: JSON.stringify(data),
                       })
                     : await fetch(API_URL, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(contact),
+                          body: JSON.stringify(data),
                       });
                 if (!res.ok) throw new Error('Ошибка сохранения');
-                showToast(id ? 'Контакт обновлён' : 'Контакт создан');
                 closeModal();
-                loadContacts();
+                showToast(id ? 'Контакт обновлён' : 'Контакт создан');
+                await loadContacts();
             } catch (err) {
                 showToast(err.message, true);
             }
         });
 
-        document.getElementById('deleteBtn').addEventListener('click', async () => {
-            const id = document.getElementById('contactId').value;
-            if (!id || !confirm('Удалить этот контакт?')) return;
+        async function editContact(id) {
+            const c = contacts.find(x => x.id === id);
+            if (c) openModal(c);
+        }
+
+        async function deleteContact(id) {
+            const c = contacts.find(x => x.id === id);
+            if (!c || !confirm(`Удалить контакт "${c.username}"?`)) return;
             try {
                 const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
                 if (!res.ok && res.status !== 204) throw new Error('Ошибка удаления');
                 showToast('Контакт удалён');
+                await loadContacts();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        document.getElementById('deleteBtn').addEventListener('click', async () => {
+            const id = document.getElementById('contactId').value;
+            if (!id || !confirm('Удалить контакт?')) return;
+            try {
+                const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                if (!res.ok && res.status !== 204) throw new Error('Ошибка удаления');
                 closeModal();
-                loadContacts();
+                showToast('Контакт удалён');
+                await loadContacts();
             } catch (err) {
                 showToast(err.message, true);
             }
         });
 
+        document.getElementById('addBtn').addEventListener('click', () => openModal());
+        document.getElementById('cancelBtn').addEventListener('click', closeModal);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal();
+        });
+
+        // Старт
         loadContacts();
     </script>
 </body>
