@@ -43,7 +43,7 @@ func main() {
 	e.Use(middleware.Recover())
 
     e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-    AllowOrigins: []string{"*"}, // для разработки; в продакшене укажите точный адрес
+    AllowOrigins: []string{"https://phone-book-fr.onrender.com"}, // В ПРОДЕ АДРЕС 
     AllowMethods: []string{
         http.MethodGet, http.MethodPost, http.MethodPut,
         http.MethodDelete, http.MethodOptions,
